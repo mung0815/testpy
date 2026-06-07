@@ -12,7 +12,7 @@ import {
   ImageRun,
   type IImageOptions,
 } from "docx";
-import type { Citation, Corpus, Draft, SourceMeta } from "./models.js";
+import type { Citation, Corpus, Draft, Section, SourceMeta } from "./models.js";
 import { STYLE } from "./style.js";
 
 // DOCX 조립(RULES.md §2).
@@ -97,6 +97,20 @@ export function makeImageRun(opts: IImageOptions): ImageRun {
   return new ImageRun(opts);
 }
 
+/**
+ * 보고서에 실제로 렌더링할 섹션/주장만 추린다.
+ * 근거 없는 주장(needs_evidence 또는 검증 통과 인용 0개)은 보고서에서 삭제한다(RULES §1).
+ * 주장이 전부 빠진 섹션은 통째로 생략한다.
+ */
+export function renderableSections(draft: Draft): Section[] {
+  return draft.sections
+    .map((s) => ({
+      ...s,
+      claims: s.claims.filter((c) => c.status !== "needs_evidence" && c.citations.length > 0),
+    }))
+    .filter((s) => s.claims.length > 0);
+}
+
 /** 검증된 드래프트 + 코퍼스 → docx Document. */
 export function assembleDocx(draft: Draft, corpus: Corpus): Document {
   const footnotes: Record<number, { children: Paragraph[] }> = {};
@@ -113,27 +127,21 @@ export function assembleDocx(draft: Draft, corpus: Corpus): Document {
     }),
   );
 
-  for (const section of draft.sections) {
+  for (const section of renderableSections(draft)) {
     // 섹션 제목
     children.push(...paragraphsFromText(section.title, { bold: true }));
 
     for (const claim of section.claims) {
+      // 근거 있는 주장만 도달(renderableSections 가 무근거 주장을 이미 삭제).
       const paras = paragraphsFromText(claim.text, { firstLineIndent: true });
       const last = paras[paras.length - 1];
-
-      if (claim.status === "needs_evidence" || claim.citations.length === 0) {
-        // 무근거 주장: [근거 필요] 표식
-        if (last) last.addChildElement(bodyRun(" [근거 필요]"));
-      } else {
-        // 각 인용을 각주로
-        for (const c of claim.citations) {
-          footnoteId++;
-          footnotes[footnoteId] = {
-            children: [new Paragraph({ children: [bodyRun(citationFootnoteText(c))] })],
-          };
-          if (last) last.addChildElement(new FootnoteReferenceRun(footnoteId));
-          usedSourceIds.add(c.sourceId);
-        }
+      for (const c of claim.citations) {
+        footnoteId++;
+        footnotes[footnoteId] = {
+          children: [new Paragraph({ children: [bodyRun(citationFootnoteText(c))] })],
+        };
+        if (last) last.addChildElement(new FootnoteReferenceRun(footnoteId));
+        usedSourceIds.add(c.sourceId);
       }
       children.push(...paras);
     }

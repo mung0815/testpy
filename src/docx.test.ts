@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { assembleDocx, toBuffer, paragraphsFromText, citationFootnoteText, makeImageRun } from "./docx.js";
+import { assembleDocx, toBuffer, paragraphsFromText, citationFootnoteText, makeImageRun, renderableSections } from "./docx.js";
 import type { Corpus, Draft } from "./models.js";
 
 const corpus: Corpus = {
@@ -44,6 +44,22 @@ describe("docx", () => {
   it("ImageRun 은 type 없으면 에러(RULES §2)", () => {
     // @ts-expect-error type 누락을 의도적으로 검증
     expect(() => makeImageRun({ data: Buffer.from(""), transformation: { width: 1, height: 1 } })).toThrow();
+  });
+
+  it("근거 없는 주장은 보고서에서 삭제(needs_evidence 제외)", () => {
+    const secs = renderableSections(draft);
+    expect(secs).toHaveLength(1);
+    expect(secs[0].claims).toHaveLength(1); // verified 1개만, needs_evidence 삭제
+    expect(secs[0].claims[0].text).toBe("집행이 더뎠다.");
+  });
+
+  it("주장이 전부 근거 없으면 섹션 통째로 생략", () => {
+    const allEmpty: Draft = {
+      topic: "t",
+      reportType: "issue_brief",
+      sections: [{ title: "배경", claims: [{ text: "근거 없음.", status: "needs_evidence", citations: [] }] }],
+    };
+    expect(renderableSections(allEmpty)).toHaveLength(0);
   });
 
   it("DOCX 버퍼를 생성한다(비자명한 크기)", async () => {
