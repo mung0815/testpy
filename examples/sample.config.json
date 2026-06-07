@@ -1,0 +1,15 @@
+{
+  "topic": "청년 주거지원 정책의 집행 실태",
+  "outline": ["한눈에 보기", "배경", "쟁점", "정책 함의", "제언"],
+  "reportType": "issue_brief",
+  "sources": [
+    {
+      "sourceId": "S1",
+      "title": "2025 주거지원 집행 점검 보고",
+      "author": "국토연구원",
+      "publishedDate": "2025-03-01",
+      "url": "https://example.org/housing-2025",
+      "text": "2025년 청년 주거지원 예산 집행률은 72%에 머물렀다. 신청 절차의 복잡성이 주요 병목으로 지목된다. 다음 분기 전망은 불투명하다."
+    }
+  ]
+}
